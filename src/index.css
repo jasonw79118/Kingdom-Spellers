@@ -1,0 +1,263 @@
+/* --------------------------------------------------
+   RESET + BASE STYLE
+-------------------------------------------------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Comic Sans MS", "Comic Neue", sans-serif;
+  background: linear-gradient(135deg, #ffe27a, #ff9ec4, #b28aff);
+  background-size: 300% 300%;
+  animation: bgMove 12s infinite alternate ease-in-out;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  color: #333;
+}
+
+/* soft animated background */
+@keyframes bgMove {
+  0% { background-position: left top; }
+  100% { background-position: right bottom; }
+}
+
+/* --------------------------------------------------
+   PAGE STRUCTURE
+-------------------------------------------------- */
+.ks-root {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* main card container */
+.ks-card {
+  width: 100%;
+  max-width: 1100px;
+  background: #fff9f3;
+  border: 5px solid #f0c36b;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.ks-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 20px;
+}
+
+.ks-title {
+  font-size: 2.8rem;
+  text-transform: lowercase;
+  color: #734a00;
+}
+
+.ks-subtitle {
+  font-size: 1rem;
+  color: #7a5a1a;
+}
+
+/* XP bar and level */
+.ks-xp-panel {
+  text-align: right;
+  min-width: 200px;
+}
+
+.ks-xp-label span {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #b85d00;
+}
+
+.ks-xp-bar {
+  width: 100%;
+  height: 12px;
+  background: #ffe1b0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 5px 0;
+}
+
+.ks-xp-bar-fill {
+  height: 100%;
+  background: #ff9900;
+  transition: width 0.4s ease;
+}
+
+.ks-stage-label {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+/* --------------------------------------------------
+   MAIN GAME LAYOUT
+-------------------------------------------------- */
+.ks-main {
+  display: flex;
+  gap: 20px;
+}
+
+/* Left: word + letters */
+.ks-game-area {
+  flex: 2;
+}
+
+/* Clue / definition */
+.ks-definition {
+  background: #fff5d9;
+  border-left: 6px solid #ffb94a;
+  padding: 12px;
+  font-size: 1.1rem;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.ks-definition h2 {
+  font-size: 1.2rem;
+  color: #8a5200;
+  margin-bottom: 5px;
+  text-transform: lowercase;
+}
+
+/* masked word slots */
+.ks-masked-word {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  font-size: 2.8rem;
+  letter-spacing: 4px;
+  margin-bottom: 20px;
+}
+
+.ks-letter-slot {
+  min-width: 40px;
+  padding: 5px;
+  border-bottom: 4px solid #432700;
+  text-align: center;
+  text-transform: lowercase;
+  font-weight: bold;
+  color: #2e2000;
+}
+
+.ks-letter-blank {
+  opacity: 0.3;
+}
+
+/* --------------------------------------------------
+   LETTER TILES
+-------------------------------------------------- */
+.ks-letter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(55px, 1fr));
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.ks-letter-tile {
+  background: url("https://i.imgur.com/1q7PWwm.png") #ccb892;
+  background-size: cover;
+  border: 3px solid #5a4200;
+  border-radius: 8px;
+  font-size: 1.8rem;
+  font-weight: bold;
+  text-transform: lowercase;
+  padding: 10px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.ks-letter-tile:hover {
+  transform: translateY(-3px);
+}
+
+.ks-letter-used {
+  opacity: 0.4;
+  transform: scale(0.9);
+}
+
+/* buttons */
+.ks-buttons-row {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.ks-btn {
+  font-size: 1rem;
+  text-transform: lowercase;
+  font-weight: bold;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.ks-btn-primary {
+  background: #ff9600;
+  color: #fff;
+}
+
+.ks-btn-secondary {
+  background: #6b6b6b;
+  color: #fff;
+}
+
+/* feedback */
+.ks-feedback {
+  margin-top: 15px;
+  font-size: 1.3rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+/* --------------------------------------------------
+   CHARACTER AREA
+-------------------------------------------------- */
+.ks-character-area {
+  flex: 1;
+  text-align: center;
+}
+
+.ks-character-img {
+  width: 100%;
+  max-width: 220px;
+  image-rendering: auto;
+}
+
+.ks-character-caption {
+  margin-top: 10px;
+}
+
+.ks-character-hint {
+  font-size: 0.8rem;
+  color: #6e5128;
+}
+
+/* --------------------------------------------------
+   RESPONSIVE RULES
+-------------------------------------------------- */
+@media (max-width: 900px) {
+  .ks-main {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .ks-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .ks-character-img {
+    max-width: 180px;
+  }
+}
+
