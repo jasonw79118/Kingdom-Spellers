@@ -1,6 +1,4 @@
-/* --------------------------------------------------
-   RESET + BASE STYLE
--------------------------------------------------- */
+/* RESET */
 * {
   margin: 0;
   padding: 0;
@@ -8,256 +6,218 @@
 }
 
 body {
-  font-family: "Comic Sans MS", "Comic Neue", sans-serif;
-  background: linear-gradient(135deg, #ffe27a, #ff9ec4, #b28aff);
+  background: linear-gradient(135deg, #ffd86f, #ff9ec4, #b38bff);
   background-size: 300% 300%;
-  animation: bgMove 12s infinite alternate ease-in-out;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 20px;
-  color: #333;
-}
-
-/* soft animated background */
-@keyframes bgMove {
-  0% { background-position: left top; }
-  100% { background-position: right bottom; }
-}
-
-/* --------------------------------------------------
-   PAGE STRUCTURE
--------------------------------------------------- */
-.ks-root {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-/* main card container */
-.ks-card {
-  width: 100%;
-  max-width: 1100px;
-  background: #fff9f3;
-  border: 5px solid #f0c36b;
-  border-radius: 20px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-}
-
-.ks-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  gap: 20px;
-}
-
-.ks-title {
-  font-size: 2.8rem;
-  text-transform: lowercase;
-  color: #734a00;
-}
-
-.ks-subtitle {
-  font-size: 1rem;
-  color: #7a5a1a;
-}
-
-/* XP bar and level */
-.ks-xp-panel {
-  text-align: right;
-  min-width: 200px;
-}
-
-.ks-xp-label span {
-  font-size: 1.2rem;
-  font-weight: 900;
-  color: #b85d00;
-}
-
-.ks-xp-bar {
-  width: 100%;
-  height: 12px;
-  background: #ffe1b0;
-  border-radius: 10px;
-  overflow: hidden;
-  margin: 5px 0;
-}
-
-.ks-xp-bar-fill {
-  height: 100%;
-  background: #ff9900;
-  transition: width 0.4s ease;
-}
-
-.ks-stage-label {
-  font-size: 1.1rem;
-  font-weight: bold;
-}
-
-/* --------------------------------------------------
-   MAIN GAME LAYOUT
--------------------------------------------------- */
-.ks-main {
-  display: flex;
-  gap: 20px;
-}
-
-/* Left: word + letters */
-.ks-game-area {
-  flex: 2;
-}
-
-/* Clue / definition */
-.ks-definition {
-  background: #fff5d9;
-  border-left: 6px solid #ffb94a;
-  padding: 12px;
-  font-size: 1.1rem;
-  border-radius: 8px;
-  margin-bottom: 15px;
-}
-
-.ks-definition h2 {
-  font-size: 1.2rem;
-  color: #8a5200;
-  margin-bottom: 5px;
-  text-transform: lowercase;
-}
-
-/* masked word slots */
-.ks-masked-word {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  font-size: 2.8rem;
-  letter-spacing: 4px;
-  margin-bottom: 20px;
-}
-
-.ks-letter-slot {
-  min-width: 40px;
-  padding: 5px;
-  border-bottom: 4px solid #432700;
+  animation: gradientMove 10s ease infinite;
+  font-family: "Comic Sans MS", "Arial Rounded MT Bold", sans-serif;
+  color: #42210b;
+  overflow-x: hidden;
   text-align: center;
-  text-transform: lowercase;
+}
+
+/* Gradient animation */
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* MAIN GAME CONTAINER */
+.game-container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 20px 10px;
+  min-height: 100vh;
+}
+
+/* TITLE */
+h1 {
+  font-size: 2.4rem;
+  margin-bottom: 5px;
+  text-shadow: 2px 2px 0 #fff;
+}
+
+/* XP / Rank / Lives info */
+p {
+  font-size: 1.3rem;
+  margin-bottom: 10px;
+}
+
+/* CHARACTER IMAGE */
+.character {
+  width: min(40vw, 220px);
+  height: auto;
+  object-fit: contain;
+  image-rendering: crisp-edges;
+  margin: 10px 0 20px;
+}
+
+/* WORD DISPLAY */
+.word-display {
+  font-size: 2rem;
   font-weight: bold;
-  color: #2e2000;
-}
-
-.ks-letter-blank {
-  opacity: 0.3;
-}
-
-/* --------------------------------------------------
-   LETTER TILES
--------------------------------------------------- */
-.ks-letter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(55px, 1fr));
-  gap: 10px;
-  margin-top: 15px;
-}
-
-.ks-letter-tile {
-  background: url("https://i.imgur.com/1q7PWwm.png") #ccb892;
-  background-size: cover;
-  border: 3px solid #5a4200;
-  border-radius: 8px;
-  font-size: 1.8rem;
-  font-weight: bold;
+  letter-spacing: 8px;
+  margin: 15px auto 20px;
   text-transform: lowercase;
+}
+
+.letter-space {
+  padding: 0 4px;
+}
+
+/* CLUE */
+.clue {
+  font-size: 1.1rem;
+  background: #fff6ca;
   padding: 10px;
+  border-radius: 10px;
+  border: 2px solid #f4c542;
+  margin: 10px;
+  display: inline-block;
+  max-width: 90%;
+}
+
+/* SPEAKER BUTTON */
+.speaker-btn {
+  margin-left: 8px;
   cursor: pointer;
-  transition: 0.15s;
+  border: none;
+  background: none;
+  font-size: 1.25rem;
+  transition: transform 0.15s;
 }
 
-.ks-letter-tile:hover {
-  transform: translateY(-3px);
+.speaker-btn:hover {
+  transform: scale(1.2);
 }
 
-.ks-letter-used {
-  opacity: 0.4;
+.speaker-btn:active {
   transform: scale(0.9);
 }
 
-/* buttons */
-.ks-buttons-row {
-  margin-top: 15px;
+/* LETTER BUTTONS */
+.letters-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.letter-button {
+  width: 55px;
+  height: 55px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  background: #e0dcd2;
+  color: #42210b;
+  text-transform: lowercase;
+  box-shadow: 0 3px 0 #9a8c69;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.letter-button:hover {
+  background: #ffe8a3;
+  transform: translateY(-3px);
+}
+
+.letter-button.selected {
+  background: #8bc34a;
+  color: #fff;
+  box-shadow: 0 3px 0 #4a7519;
+  transform: translateY(3px);
+}
+
+/* GAME OVER OVERLAY + MODAL */
+.game-over-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   justify-content: center;
-  gap: 15px;
+  align-items: center;
+  z-index: 1000;
 }
 
-.ks-btn {
-  font-size: 1rem;
+.game-over-modal {
+  background: #fffbe8;
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 3px solid #f4c542;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  max-width: 320px;
+  width: 80%;
+}
+
+.game-over-modal h2 {
+  font-size: 1.8rem;
+  margin-bottom: 8px;
   text-transform: lowercase;
-  font-weight: bold;
-  padding: 10px 16px;
-  border-radius: 8px;
+}
+
+.game-over-modal p {
+  font-size: 1.1rem;
+  margin-bottom: 14px;
+}
+
+.game-over-modal button {
+  padding: 8px 16px;
+  font-size: 1rem;
+  border-radius: 999px;
   border: none;
+  background: #ffb347;
+  color: #3e1b00;
+  font-weight: bold;
   cursor: pointer;
+  box-shadow: 0 3px 0 #cc8422;
 }
 
-.ks-btn-primary {
-  background: #ff9600;
-  color: #fff;
+.game-over-modal button:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #cc8422;
 }
 
-.ks-btn-secondary {
-  background: #6b6b6b;
-  color: #fff;
-}
-
-/* feedback */
-.ks-feedback {
-  margin-top: 15px;
-  font-size: 1.3rem;
-  font-weight: 900;
-  text-align: center;
-}
-
-/* --------------------------------------------------
-   CHARACTER AREA
--------------------------------------------------- */
-.ks-character-area {
-  flex: 1;
-  text-align: center;
-}
-
-.ks-character-img {
-  width: 100%;
-  max-width: 220px;
-  image-rendering: auto;
-}
-
-.ks-character-caption {
-  margin-top: 10px;
-}
-
-.ks-character-hint {
-  font-size: 0.8rem;
-  color: #6e5128;
-}
-
-/* --------------------------------------------------
-   RESPONSIVE RULES
--------------------------------------------------- */
-@media (max-width: 900px) {
-  .ks-main {
-    flex-direction: column;
-    align-items: center;
+/* RESPONSIVE DESIGN */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 2rem;
   }
 
-  .ks-header {
-    flex-direction: column;
-    text-align: center;
+  .letter-button {
+    width: 48px;
+    height: 48px;
+    font-size: 1.3rem;
+    border-radius: 10px;
   }
 
-  .ks-character-img {
-    max-width: 180px;
+  .clue {
+    font-size: 1rem;
+    padding: 8px;
+  }
+
+  .word-display {
+    font-size: 1.7rem;
+    letter-spacing: 6px;
+  }
+
+  .character {
+    width: 50vw;
+    max-width: 200px;
+  }
+
+  .game-over-modal {
+    max-width: 280px;
+    width: 85%;
   }
 }
+
 
