@@ -2,224 +2,252 @@ import React, { useState, useEffect } from "react";
 import firstGradeWords from "./data/firstgradelist";
 import "./index.css";
 
-const allWords = Object.keys(firstGradeWords);
-
-// Character image paths (from public/images)
-const baseImagePath = process.env.PUBLIC_URL + "/images/";
-
+// Character images served from public/images
 const characterImages = {
   esquire: {
-    idle: baseImagePath + "esquire_idle.png",
-    cheer: baseImagePath + "esquire_cheer.png",
-    cry: baseImagePath + "esquire_cry.png",
+    idle: "images/esquire_idle.png",
+    dance: "images/esquire_cheer.png",
+    cry: "images/esquire_cry.png",
   },
   knight: {
-    idle: baseImagePath + "knight_idle.png",
-    cheer: baseImagePath + "knight_cheer.png",
-    cry: baseImagePath + "knight_cry.png",
+    idle: "images/knight_idle.png",
+    dance: "images/knight_cheer.png",
+    cry: "images/knight_cry.png",
   },
   king: {
-    idle: baseImagePath + "king_idle.png",
-    cheer: baseImagePath + "king_cheer.png",
-    cry: baseImagePath + "king_cry.png",
+    idle: "images/king_idle.png",
+    dance: "images/king_cheer.png",
+    cry: "images/king_cry.png",
   },
 };
 
+// 🔊 Speak the word only
+const speakWord = (text) => {
+  if (!text || typeof window === "undefined" || !window.speechSynthesis) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "en-US";
+  utter.rate = 0.9;
+  utter.pitch = 1.1;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utter);
+};
+
+// Difficulty scaling based on XP
+const getRevealPercent = (xp) => {
+  if (xp < 15) return 0.75;  // easy
+  if (xp < 40) return 0.5;   // normal
+  if (xp < 80) return 0.3;   // hard
+  return 0.15;               // bonkers
+};
+
 export default function KingdomSpellers() {
-  const [xp, setXp] = useState(0);
+  const [xp, setXP] = useState(0);
   const [lives, setLives] = useState(3);
+  const [currentWord, setCurrentWord] = useState("");
+  const [maskedArray, setMaskedArray] = useState([]);
+  const [letterTiles, setLetterTiles] = useState([]);
+  const [definition, setDefinition] = useState("");
+  const [feedback, setFeedback] = useState("");
+  const [characterAction, setCharacterAction] = useState("idle"); // idle | dance | cry
   const [gameOver, setGameOver] = useState(false);
 
-  const [currentWord, setCurrentWord] = useState(
-    () => allWords[Math.floor(Math.random() * allWords.length)]
-  );
-  const [displayLetters, setDisplayLetters] = useState([]);
-  const [selectedLetters, setSelectedLetters] = useState([]);
-  const [characterState, setCharacterState] = useState("idle"); // idle | win | lose
+  // rank derived from xp (fixed character size, just visual label)
+  const rank =
+    xp < 30 ? "esquire" :
+    xp < 70 ? "knight" :
+    "king";
 
-  // Rank label shown in UI
-  const getRankLabel = () => {
-    if (xp < 50) return "Esquire";
-    if (xp < 150) return "Knight";
-    return "King";
-  };
+  const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
 
-  // Rank key used for image lookup
-  const getRankKey = () => {
-    if (xp < 50) return "esquire";
-    if (xp < 150) return "knight";
-    return "king";
-  };
+  // Load a new random word
+  const loadWord = () => {
+    const words = Object.keys(firstGradeWords);
+    const word = words[Math.floor(Math.random() * words.length)];
 
-  const getCharacterImage = () => {
-    const rankKey = getRankKey();
-    const imgs = characterImages[rankKey];
-    if (characterState === "win") return imgs.cheer;
-    if (characterState === "lose") return imgs.cry;
-    return imgs.idle;
-  };
+    const revealPercent = getRevealPercent(xp);
+    const revealCount = Math.max(1, Math.floor(word.length * revealPercent));
 
-  // Text-to-speech for current word
-  const speakWord = (word) => {
-    if (!word || typeof window === "undefined" || !window.speechSynthesis) return;
-    const utterance = new SpeechSynthesisUtterance(word);
-    utterance.lang = "en-US";
-    utterance.rate = 0.85;
-    utterance.pitch = 1.1;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-  };
+    const revealIndices = new Set();
+    while (revealIndices.size < revealCount) {
+      revealIndices.add(Math.floor(Math.random() * word.length));
+    }
 
-  // Prepare letter tiles whenever the current word changes
-  useEffect(() => {
-    if (!currentWord) return;
-
-    const word = currentWord.toLowerCase();
-    const baseLetters = word.split("");
-    const extraCount = Math.max(0, 6 - word.length);
-    const extraLetters = Array.from({ length: extraCount }, () =>
-      String.fromCharCode(97 + Math.floor(Math.random() * 26))
+    const masked = word.split("").map((letter, i) =>
+      revealIndices.has(i) ? letter : "_"
     );
 
-    const shuffled = [...baseLetters, ...extraLetters].sort(() => Math.random() - 0.5);
+    const tiles = word.split("").map((letter, index) => ({
+      id: `${letter}-${index}-${Math.random()}`,
+      letter,
+    }));
 
-    setDisplayLetters(shuffled);
-    setSelectedLetters([]);
-    setCharacterState("idle");
-  }, [currentWord]);
-
-  // Pick a new random word
-  const newWord = () => {
-    const word = allWords[Math.floor(Math.random() * allWords.length)];
     setCurrentWord(word);
+    setMaskedArray(masked);
+    setLetterTiles(shuffle(tiles));
+    setDefinition(firstGradeWords[word]); // values are strings
+    setFeedback("");
+    setCharacterAction("idle");
   };
 
-  // Check for correct / wrong full word
+  // First word on mount
   useEffect(() => {
-    if (!currentWord || gameOver) return;
+    loadWord();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const guess = selectedLetters.join("");
-    if (guess.length !== currentWord.length) return; // only check when all slots filled
+  const handleLetterClick = (tile) => {
+    if (gameOver) return;
+    if (characterAction !== "idle") return;
 
-    const target = currentWord.toLowerCase();
+    const blankIndex = maskedArray.indexOf("_");
+    if (blankIndex === -1) return;
 
-    if (guess === target) {
-      // Correct
-      setXp((prev) => prev + 10);
-      setCharacterState("win");
+    const newMask = [...maskedArray];
+    newMask[blankIndex] = tile.letter;
+    setMaskedArray(newMask);
+
+    setLetterTiles((prevTiles) => prevTiles.filter((t) => t.id !== tile.id));
+
+    // If we still have blanks, don't check yet
+    if (newMask.includes("_")) {
+      return;
+    }
+
+    const formed = newMask.join("");
+
+    // COMPLETE WORD: check correct vs wrong
+    if (formed === currentWord) {
+      setCharacterAction("dance");
+      setFeedback("🎉 Correct!");
+      speakWord(currentWord);
+      setXP((prevXP) => prevXP + 10);
+
+      // 1 second pause, then new word
       setTimeout(() => {
-        if (!gameOver) {
-          newWord();
-        }
-      }, 1200);
+        setCharacterAction("idle");
+        loadWord();
+      }, 1000);
     } else {
-      // Wrong full word -> lose one life
-      setCharacterState("lose");
+      setCharacterAction("cry");
+      setFeedback("❌ Try again!");
+
       setLives((prevLives) => {
-        const updated = prevLives - 1;
-        if (updated <= 0) {
-          // Game over
+        const newLives = prevLives - 1;
+
+        if (newLives <= 0) {
           setGameOver(true);
+          speakWord("game over");
           return 0;
         } else {
-          // Still have lives: move on to a new word after a short pause
+          // Still alive → new word after 1 second
           setTimeout(() => {
-            if (!gameOver) {
-              newWord();
-            }
+            setCharacterAction("idle");
+            loadWord();
           }, 1000);
-          return updated;
+          return newLives;
         }
       });
     }
-  }, [selectedLetters, currentWord, gameOver]);
+  };
 
-  // Click a letter tile (select/deselect)
-  const handleLetterClick = (letter) => {
+  // Simple undo: remove last non-blank and return tile
+  const undoLast = () => {
     if (gameOver) return;
-    if (characterState === "win" || characterState === "lose") return;
+    if (characterAction !== "idle") return;
 
-    const index = selectedLetters.indexOf(letter);
-    if (index !== -1) {
-      // Deselect this letter (remove first match)
-      const updated = [...selectedLetters];
-      updated.splice(index, 1);
-      setSelectedLetters(updated);
-    } else {
-      // Add letter if there is still space
-      if (selectedLetters.length < currentWord.length) {
-        setSelectedLetters([...selectedLetters, letter]);
+    let lastIndex = -1;
+    for (let i = maskedArray.length - 1; i >= 0; i--) {
+      if (maskedArray[i] !== "_") {
+        lastIndex = i;
+        break;
       }
     }
+    if (lastIndex === -1) return;
+
+    const letter = maskedArray[lastIndex];
+    const newMask = [...maskedArray];
+    newMask[lastIndex] = "_";
+    setMaskedArray(newMask);
+
+    setLetterTiles((prev) => [
+      ...prev,
+      { id: `${letter}-${Math.random()}`, letter },
+    ]);
   };
 
-  // Hearts display
-  const hearts = "❤️".repeat(lives) + "🖤".repeat(3 - lives);
-
-  // Restart game after game over
-  const handleRestart = () => {
-    setXp(0);
+  const restart = () => {
+    setXP(0);
     setLives(3);
     setGameOver(false);
-    setCharacterState("idle");
-    setSelectedLetters([]);
-    newWord();
+    setCharacterAction("idle");
+    setFeedback("");
+    loadWord();
   };
 
-  const clue = firstGradeWords[currentWord];
-
   return (
-    <div className="game-container">
-      <h1>👑 kingdom spellers</h1>
-      <p>
-        xp: {xp} | rank: {getRankLabel()} | lives: {hearts}
-      </p>
+    <div className="ks-container">
+      <h1 className="ks-title">🛡️ Kingdom Spellers</h1>
 
-      <img src={getCharacterImage()} alt="character" className="character" />
-
-      <h3 className="clue">
-        clue: {clue}
-        <button
-          className="speaker-btn"
-          onClick={() => speakWord(currentWord)}
-          title="Hear word"
-        >
-          🔊
-        </button>
-      </h3>
-
-      <div className="word-display">
-        {currentWord.split("").map((_, i) => (
-          <span key={i} className="letter-space">
-            {selectedLetters[i] || "_"}
-          </span>
-        ))}
-      </div>
-
-      <div className="letters-container">
-        {displayLetters.map((letter, index) => (
-          <button
-            key={`${letter}-${index}-${currentWord}`}
-            className={`letter-button ${
-              selectedLetters.includes(letter) ? "selected" : ""
-            }`}
-            onClick={() => handleLetterClick(letter)}
-          >
-            {letter}
+      {gameOver ? (
+        <div className="game-over-box">
+          <h2>Game Over!</h2>
+          <p>Your hearts are gone. Want to try again?</p>
+          <button className="restart-btn" onClick={restart}>
+            Play Again
           </button>
-        ))}
-      </div>
-
-      {gameOver && (
-        <div className="game-over-overlay">
-          <div className="game-over-modal">
-            <h2>game over</h2>
-            <p>you used all your hearts. want to try again?</p>
-            <button onClick={handleRestart}>start over</button>
-          </div>
         </div>
+      ) : (
+        <>
+          <div className="hud">
+            <div className="stat-box">⭐ XP: {xp}</div>
+            <div className="stat-box">❤️ Lives: {lives}</div>
+            <div className="stat-box">🛡 Rank: {rank}</div>
+          </div>
+
+          <img
+            src={characterImages[rank][characterAction]}
+            alt="character"
+            className="character-img"
+          />
+
+          {/* Word + Speaker */}
+          <div className="word-row">
+            <div className="word-display">{maskedArray.join(" ")}</div>
+            <button
+              className="speaker-btn"
+              onClick={() => speakWord(currentWord)}
+              title="Hear the word"
+            >
+              🔊
+            </button>
+          </div>
+
+          {/* Definition */}
+          <div className="definition-box">
+            ℹ️ {definition}
+          </div>
+
+          {/* Letter tiles */}
+          <div className="tile-grid">
+            {letterTiles.map((tile) => (
+              <button
+                key={tile.id}
+                className="letter-tile"
+                onClick={() => handleLetterClick(tile)}
+              >
+                {tile.letter}
+              </button>
+            ))}
+          </div>
+
+          {/* Feedback + Undo */}
+          {feedback && <div className="feedback">{feedback}</div>}
+
+          <button className="undo-btn" onClick={undoLast}>
+            ⬅ Undo
+          </button>
+        </>
       )}
     </div>
   );
 }
-
