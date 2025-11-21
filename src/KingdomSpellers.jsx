@@ -1,312 +1,369 @@
-import React, { useState, useEffect } from "react";
-import firstGradeWords from "./data/firstgradelist";
+import React, { useState, useEffect, useCallback } from "react";
+import { words as wordList, definitions } from "./data/firstgradelist";
 import "./index.css";
 
-// character images served from public/images
-const characterImages = {
+// Avatar sprite paths from public folder
+const SPRITES = {
   esquire: {
-    idle: "images/esquire_idle.png",
-    dance: "images/esquire_cheer.png",
-    cry: "images/esquire_cry.png",
+    idle: `${process.env.PUBLIC_URL}/assets/images/esquire_idle.png`,
+    cheer: `${process.env.PUBLIC_URL}/assets/images/esquire_cheer.png`,
+    cry: `${process.env.PUBLIC_URL}/assets/images/esquire_cry.png`,
   },
   knight: {
-    idle: "images/knight_idle.png",
-    dance: "images/knight_cheer.png",
-    cry: "images/knight_cry.png",
+    idle: `${process.env.PUBLIC_URL}/assets/images/knight_idle.png`,
+    cheer: `${process.env.PUBLIC_URL}/assets/images/knight_cheer.png`,
+    cry: `${process.env.PUBLIC_URL}/assets/images/knight_cry.png`,
   },
   king: {
-    idle: "images/king_idle.png",
-    dance: "images/king_cheer.png",
-    cry: "images/king_cry.png",
+    idle: `${process.env.PUBLIC_URL}/assets/images/king_idle.png`,
+    cheer: `${process.env.PUBLIC_URL}/assets/images/king_cheer.png`,
+    cry: `${process.env.PUBLIC_URL}/assets/images/king_cry.png`,
   },
 };
 
-// 🔊 speak the word only
-const speakWord = (text) => {
-  if (!text || typeof window === "undefined" || !window.speechSynthesis) return;
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "en-US";
-  utter.rate = 0.9;
-  utter.pitch = 1.1;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utter);
-};
+const ALPHABET = "abcdefghijklmnopqrstuvwxyz".split("");
 
-// difficulty based on how many full cycles of the list are done
-const getRevealPercentForCycle = (cycle) => {
-  if (cycle === 0) return 0.75; // easy
-  if (cycle === 1) return 0.5;  // normal
-  if (cycle === 2) return 0.3;  // hard
-  return 0.15;                  // bonkers
-};
+const getDefinition = (word) =>
+  definitions[word] || "Think about what this word means.";
 
-const allWords = Object.keys(firstGradeWords);
-
-const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+// Utility: shuffle a small array
+function shuffle(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
 
 export default function KingdomSpellers() {
-  const [xp, setXP] = useState(0);
-  const [lives, setLives] = useState(3);
-  const [cycle, setCycle] = useState(0);            // how many full passes through word list
-  const [wordOrder, setWordOrder] = useState([]);   // current shuffled list of words
-  const [wordIndex, setWordIndex] = useState(0);    // index within wordOrder
-
   const [currentWord, setCurrentWord] = useState("");
-  const [maskedArray, setMaskedArray] = useState([]);
-  const [letterTiles, setLetterTiles] = useState([]);
-  const [definition, setDefinition] = useState("");
-  const [feedback, setFeedback] = useState("");
-  const [characterAction, setCharacterAction] = useState("idle"); // idle | dance | cry
+  const [currentDefinition, setCurrentDefinition] = useState("");
+  const [guessArray, setGuessArray] = useState([]);
+  const [tiles, setTiles] = useState([]); // { id, letter }
+  const [tileAssignments, setTileAssignments] = useState({}); // id -> index in word or null
+  const [xp, setXp] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [stage, setStage] = useState(0); // 0=esquire,1=knight,2=king
+  const [emojiFeedback, setEmojiFeedback] = useState("");
+  const [usedWordsThisStage, setUsedWordsThisStage] = useState(new Set());
   const [gameOver, setGameOver] = useState(false);
+  const [anim, setAnim] = useState("idle"); // idle | cheer | cry
 
-  // rank based on xp – character size fixed in CSS
-  const rank =
-    xp < 30 ? "esquire" :
-    xp < 70 ? "knight" :
-    "king";
+  // ---------- CHARACTER HELPERS ----------
+  const stageName = stage === 0 ? "Esquire" : stage === 1 ? "Knight" : "King";
 
-  // set up a word: mask letters & create tiles with extra wrong letters
-  const setupWord = (word, cycleValue) => {
-    const revealPercent = getRevealPercentForCycle(cycleValue);
-    const letters = word.split("");
-    const revealCount = Math.max(1, Math.floor(letters.length * revealPercent));
+  const currentSpriteSet =
+    stage === 0 ? SPRITES.esquire : stage === 1 ? SPRITES.knight : SPRITES.king;
 
-    // choose indices to reveal
-    const revealIndices = new Set();
-    while (revealIndices.size < revealCount) {
-      revealIndices.add(Math.floor(Math.random() * letters.length));
-    }
+  const avatarSrc =
+    anim === "cheer"
+      ? currentSpriteSet.cheer
+      : anim === "cry"
+      ? currentSpriteSet.cry
+      : currentSpriteSet.idle;
 
-    const masked = letters.map((letter, i) =>
-      revealIndices.has(i) ? letter : "_"
-    );
+  // ---------- CORE WORD LOGIC ----------
 
-    // correct tiles (one per letter, with index-based IDs to support duplicates)
-    const correctTiles = letters.map((letter, index) => ({
-      id: `c-${letter}-${index}-${Math.random()}`,
-      letter,
-    }));
+  // choose a new word that hasn't been used in this stage yet
+  const pickNewWord = useCallback(() => {
+    if (wordList.length === 0) return;
 
-    // add at least 3 wrong-letter tiles
-    const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
-    const uniqueLettersInWord = [...new Set(letters)];
-    const possibleWrongLetters = alphabet.filter(
-      (ch) => !uniqueLettersInWord.includes(ch)
-    );
-    const wrongTiles = [];
-    const wrongCount = 3; // at least 3 wrong choices
+    setAnim("idle");
+    setEmojiFeedback("");
 
-    for (let i = 0; i < wrongCount && possibleWrongLetters.length > 0; i++) {
-      const rIndex = Math.floor(Math.random() * possibleWrongLetters.length);
-      const wrongLetter = possibleWrongLetters.splice(rIndex, 1)[0];
-      wrongTiles.push({
-        id: `w-${wrongLetter}-${i}-${Math.random()}`,
-        letter: wrongLetter,
-      });
-    }
+    setTileAssignments({});
+    setGuessArray([]);
 
-    const allTiles = shuffle([...correctTiles, ...wrongTiles]);
+    setTiles((prev) => prev); // just to touch state, avoids stale closure warnings
 
-    setCurrentWord(word);
-    setMaskedArray(masked);
-    setLetterTiles(allTiles);
-    setDefinition(firstGradeWords[word] || "");
-    setFeedback("");
-    setCharacterAction("idle");
-  };
+    setUsedWordsThisStage((prevSet) => {
+      const used = new Set(prevSet);
 
-  // initialize first cycle on mount
+      // If we've used all words, advance stage and reset used set
+      if (used.size >= wordList.length) {
+        const nextStage = Math.min(2, stage + 1);
+        setStage(nextStage);
+        used.clear();
+      }
+
+      // find candidate words not yet used in this stage
+      const unusedWords = wordList.filter((w) => !used.has(w));
+      const word =
+        unusedWords[Math.floor(Math.random() * unusedWords.length)];
+
+      used.add(word);
+
+      // build tiles & guess state for this chosen word
+      const lowerWord = word.toLowerCase();
+      const letters = lowerWord.split("");
+
+      // initial guess array is all underscores
+      const startGuess = letters.map(() => "_");
+
+      // required letters (unique from word)
+      const uniqueLetters = Array.from(new Set(letters));
+
+      // choose wrong letters: at least 3 incorrect tiles
+      const wrongPool = ALPHABET.filter(
+        (ch) => !uniqueLetters.includes(ch)
+      );
+      const wrongCount = Math.min(
+        wrongPool.length,
+        Math.max(3, 6 - uniqueLetters.length) // more wrong tiles for shorter words
+      );
+      const wrongLetters = shuffle(wrongPool).slice(0, wrongCount);
+
+      const tileLetters = shuffle([...uniqueLetters, ...wrongLetters]);
+
+      const newTiles = tileLetters.map((letter, idx) => ({
+        id: `tile-${Date.now()}-${idx}`,
+        letter,
+      }));
+
+      // apply all state updates connected to the new word
+      setCurrentWord(lowerWord);
+      setCurrentDefinition(getDefinition(lowerWord));
+      setGuessArray(startGuess);
+      setTiles(newTiles);
+      setTileAssignments({});
+
+      return used;
+    });
+  }, [stage]);
+
+  // initial load
   useEffect(() => {
-    const initialOrder = shuffle(allWords);
-    setWordOrder(initialOrder);
-    setCycle(0);
-    setWordIndex(0);
-    if (initialOrder.length > 0) {
-      setupWord(initialOrder[0], 0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    pickNewWord();
+  }, [pickNewWord]);
 
-  // load next word, respecting cycles and difficulty progression
-  const goToNextWord = () => {
-    let nextCycle = cycle;
-    let nextIndex = wordIndex + 1;
-    let order = wordOrder;
+  // ---------- SPEECH ----------
+  const speakWord = () => {
+    if (!window.speechSynthesis || !currentWord) return;
 
-    if (!order || order.length === 0) {
-      order = shuffle(allWords);
-      nextIndex = 0;
-      nextCycle = 0;
-    } else if (nextIndex >= order.length) {
-      // finished one pass over all words → new cycle & reshuffle
-      nextCycle = cycle + 1;
-      order = shuffle(allWords);
-      nextIndex = 0;
-    }
-
-    setWordOrder(order);
-    setCycle(nextCycle);
-    setWordIndex(nextIndex);
-
-    const nextWord = order[nextIndex];
-    setupWord(nextWord, nextCycle);
+    const utter = new SpeechSynthesisUtterance(currentWord);
+    utter.lang = "en-US";
+    utter.rate = 0.9;
+    utter.pitch = 1.1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
   };
 
-  const handleLetterClick = (tile) => {
-    if (gameOver) return;
-    if (characterAction !== "idle") return;
+  // ---------- TILE CLICK ----------
+  const handleTileClick = (tileId) => {
+    if (!currentWord || gameOver) return;
 
-    const firstBlankIndex = maskedArray.indexOf("_");
-    if (firstBlankIndex === -1) return;
+    setTileAssignments((prevAssign) => {
+      const newAssign = { ...prevAssign };
+      const targetWord = currentWord;
+      const letters = targetWord.split("");
 
-    const newMask = [...maskedArray];
-    newMask[firstBlankIndex] = tile.letter;
-    setMaskedArray(newMask);
+      const alreadyAssignedPositions = new Set(
+        Object.values(newAssign).filter((v) => v !== null && v !== undefined)
+      );
 
-    setLetterTiles((prev) => prev.filter((t) => t.id !== tile.id));
+      const assignedPos = newAssign[tileId];
 
-    if (newMask.includes("_")) {
-      return; // not a full word yet
+      if (assignedPos !== undefined && assignedPos !== null) {
+        // DESELECT: remove letter from that position
+        setGuessArray((prevGuess) => {
+          const next = [...prevGuess];
+          next[assignedPos] = "_";
+          return next;
+        });
+        newAssign[tileId] = null;
+        return newAssign;
+      }
+
+      // find the tile's letter
+      const tile = tiles.find((t) => t.id === tileId);
+      if (!tile) return newAssign;
+      const { letter } = tile;
+
+      // find first position in word that matches this letter and is free
+      const pos = letters.findIndex(
+        (ch, idx) =>
+          ch === letter &&
+          !alreadyAssignedPositions.has(idx) &&
+          guessArray[idx] === "_"
+      );
+
+      if (pos === -1) {
+        // nowhere to place this letter
+        return newAssign;
+      }
+
+      // assign tile to this position
+      setGuessArray((prevGuess) => {
+        const next = [...prevGuess];
+        next[pos] = letter;
+        return next;
+      });
+      newAssign[tileId] = pos;
+      return newAssign;
+    });
+  };
+
+  // ---------- CHECK ANSWER ----------
+  const handleCheck = () => {
+    if (!currentWord || gameOver) return;
+
+    const guess = guessArray.join("");
+    if (guess.includes("_")) {
+      // incomplete guess, do nothing special
+      return;
     }
 
-    const formed = newMask.join("");
-
-    if (formed === currentWord) {
+    if (guess === currentWord) {
       // correct
-      setCharacterAction("dance");
-      setFeedback("🎉 Correct!");
-      speakWord(currentWord);
-      setXP((prevXP) => prevXP + 10);
+      setAnim("cheer");
+      setEmojiFeedback("🎉 Great job!");
+      setXp((prev) => prev + 10);
 
+      // after a short pause, go to next word
       setTimeout(() => {
-        setCharacterAction("idle");
-        goToNextWord();
-      }, 1000);
+        setAnim("idle");
+        pickNewWord();
+      }, 900);
     } else {
-      // wrong full word
-      setCharacterAction("cry");
-      setFeedback("❌ Try again!");
+      // wrong guess
+      setAnim("cry");
+      setEmojiFeedback("❌ Try again!");
 
       setLives((prevLives) => {
         const nextLives = prevLives - 1;
         if (nextLives <= 0) {
+          // game over
           setGameOver(true);
-          speakWord("game over");
-          return 0;
         } else {
-          setTimeout(() => {
-            setCharacterAction("idle");
-            goToNextWord();
-          }, 1000);
-          return nextLives;
+          // reset guess & tile usage but keep same word
+          setGuessArray(currentWord.split("").map(() => "_"));
+          setTileAssignments({});
         }
+        return nextLives;
       });
+
+      // let cry frame show briefly
+      setTimeout(() => {
+        setAnim((prevAnim) => (gameOver ? prevAnim : "idle"));
+      }, 800);
     }
   };
 
-  const undoLast = () => {
-    if (gameOver) return;
-    if (characterAction !== "idle") return;
-
-    let lastIndex = -1;
-    for (let i = maskedArray.length - 1; i >= 0; i--) {
-      if (maskedArray[i] !== "_") {
-        lastIndex = i;
-        break;
-      }
-    }
-    if (lastIndex === -1) return;
-
-    const letter = maskedArray[lastIndex];
-    const newMask = [...maskedArray];
-    newMask[lastIndex] = "_";
-    setMaskedArray(newMask);
-
-    setLetterTiles((prev) => [
-      ...prev,
-      { id: `undo-${letter}-${Math.random()}`, letter },
-    ]);
-  };
-
-  const restart = () => {
-    const newOrder = shuffle(allWords);
-    setXP(0);
+  const handleResetGame = () => {
+    setXp(0);
     setLives(3);
-    setCycle(0);
-    setWordOrder(newOrder);
-    setWordIndex(0);
+    setStage(0);
+    setEmojiFeedback("");
     setGameOver(false);
-    setCharacterAction("idle");
-    setFeedback("");
-    if (newOrder.length > 0) {
-      setupWord(newOrder[0], 0);
-    }
+    setUsedWordsThisStage(new Set());
+    pickNewWord();
   };
+
+  // auto-check when all positions are filled
+  useEffect(() => {
+    if (!currentWord || gameOver) return;
+    if (!guessArray.length) return;
+    if (!guessArray.includes("_")) {
+      // all letters chosen, check once
+      handleCheck();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guessArray]); // we intentionally only depend on guessArray
 
   return (
-    <div className="ks-container">
-      <h1 className="ks-title">🛡️ Kingdom Spellers</h1>
-
-      {gameOver ? (
-        <div className="game-over-box">
-          <h2>Game Over!</h2>
-          <p>Your hearts are gone. Want to try again?</p>
-          <button className="restart-btn" onClick={restart}>
-            Play Again
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="hud">
-            <div className="stat-box">⭐ XP: {xp}</div>
-            <div className="stat-box">❤️ Lives: {lives}</div>
-            <div className="stat-box">🛡 Rank: {rank}</div>
+    <div className="ks-page">
+      <div className="ks-game">
+        <header className="ks-header">
+          <h1 className="ks-title">
+            <span role="img" aria-label="crown">
+              👑
+            </span>{" "}
+            kingdom spellers
+          </h1>
+          <div className="ks-header-info">
+            <span className="ks-header-pill">xp: {xp}</span>
+            <span className="ks-header-pill">lives: {lives}</span>
+            <span className="ks-header-pill">rank: {stageName}</span>
           </div>
+        </header>
 
-          <img
-            src={characterImages[rank][characterAction]}
-            alt="character"
-            className="character-img"
-          />
+        <main className="ks-main">
+          {/* LEFT: avatar */}
+          <section className="ks-avatar-section">
+            <img
+              src={avatarSrc}
+              alt={`${stageName} character`}
+              className="ks-character"
+            />
+          </section>
 
-          {/* word + speaker */}
-          <div className="word-row">
-            <div className="word-display">{maskedArray.join(" ")}</div>
-            <button
-              className="speaker-btn"
-              onClick={() => speakWord(currentWord)}
-              title="Hear the word"
-            >
-              🔊
-            </button>
-          </div>
-
-          {/* definition (no background, no icon) */}
-          <div className="definition-box">
-            {definition}
-          </div>
-
-          {/* letter tiles */}
-          <div className="tile-grid">
-            {letterTiles.map((tile) => (
+          {/* RIGHT: puzzle */}
+          <section className="ks-puzzle-section">
+            <div className="ks-word-row">
               <button
-                key={tile.id}
-                className="letter-tile"
-                onClick={() => handleLetterClick(tile)}
+                type="button"
+                className="ks-speak-button"
+                onClick={speakWord}
+                aria-label="Hear the word"
               >
-                {tile.letter}
+                🔊
               </button>
-            ))}
+              <div className="ks-word-display">
+                {guessArray.map((ch, idx) => (
+                  <span key={idx} className="ks-letter-slot">
+                    {ch === "_" ? "_" : ch}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <p className="ks-definition">{currentDefinition}</p>
+
+            {emojiFeedback && (
+              <p className="ks-feedback" aria-live="polite">
+                {emojiFeedback}
+              </p>
+            )}
+
+            <div className="ks-tiles">
+              {tiles.map((tile) => {
+                const isSelected =
+                  tileAssignments[tile.id] !== undefined &&
+                  tileAssignments[tile.id] !== null;
+                return (
+                  <button
+                    key={tile.id}
+                    type="button"
+                    className={
+                      "ks-tile" + (isSelected ? " ks-tile--selected" : "")
+                    }
+                    onClick={() => handleTileClick(tile.id)}
+                  >
+                    {tile.letter}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </main>
+
+        {gameOver && (
+          <div className="ks-overlay">
+            <div className="ks-overlay-card">
+              <h2>Game Over</h2>
+              <p>You used all three lives. Tap below to start again.</p>
+              <button
+                type="button"
+                className="ks-reset-button"
+                onClick={handleResetGame}
+              >
+                Restart
+              </button>
+            </div>
           </div>
-
-          {/* feedback & undo */}
-          {feedback && <div className="feedback">{feedback}</div>}
-
-          <button className="undo-btn" onClick={undoLast}>
-            ⬅ Undo
-          </button>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 }
