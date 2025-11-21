@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/kingdom-spellers/static/css/main.a259934c.css",
-    "main.js": "/kingdom-spellers/static/js/main.7f847380.js",
+    "main.css": "/kingdom-spellers/static/css/main.d5c40232.css",
+    "main.js": "/kingdom-spellers/static/js/main.dcdd392f.js",
     "index.html": "/kingdom-spellers/index.html",
-    "main.a259934c.css.map": "/kingdom-spellers/static/css/main.a259934c.css.map",
-    "main.7f847380.js.map": "/kingdom-spellers/static/js/main.7f847380.js.map"
+    "main.d5c40232.css.map": "/kingdom-spellers/static/css/main.d5c40232.css.map",
+    "main.dcdd392f.js.map": "/kingdom-spellers/static/js/main.dcdd392f.js.map"
   },
   "entrypoints": [
-    "static/css/main.a259934c.css",
-    "static/js/main.7f847380.js"
+    "static/css/main.d5c40232.css",
+    "static/js/main.dcdd392f.js"
   ]
 }
